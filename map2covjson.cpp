@@ -124,7 +124,7 @@ int main(int argc, char *argv[]){
 		  "\"coordinates\": [\"x\",\"y\"],"
 		  "\"system\": {"
 			"\"type\": \"GeodeticCRS\","
-			"\"id\": \"http://www.opengis.net/def/crs/OGC/1.3/CRS84\""
+			"\"id\": \"http://www.opengis.net/def/crs/EPSG/0/32629\""
 		  "}"
 		"}]"
 	  "},"
