@@ -56,9 +56,26 @@ int main(int argc, char *argv[]){
 	  std::cout << "x= " << poDataset->GetRasterXSize()
 							 << ", h=" << poDataset->GetRasterYSize() <<
 							 ", bands= " << poDataset->GetRasterCount() << "\n";
+	  
+	  double padfTransform[6];
+	  poDataset->GetGeoTransform(padfTransform);
+	
+	  double xStart = padfTransform[0] + 0*padfTransform[1] + 0*padfTransform[2];
+	  double yStart = padfTransform[3] + 0*padfTransform[4] + 0*padfTransform[5];
+
+	  double xEnd = padfTransform[0] + poDataset->GetRasterXSize()*padfTransform[1] + poDataset->GetRasterYSize()*padfTransform[2];
+	  double yEnd = padfTransform[3] + poDataset->GetRasterXSize()*padfTransform[4] + poDataset->GetRasterYSize()*padfTransform[5];
+	  
+	  std::cout 
+		<< "xstart = " << xStart <<"\n"
+		<< "xend = " << xEnd <<"\n"
+		<< "ystart = " << yStart <<"\n"
+		<< "yend = " << yEnd <<"\n"
+		;
+	   
 	
 	  GDALRasterBand *data; 
-    data = poDataset->GetRasterBand(1);   
+	  data = poDataset->GetRasterBand(1);   
 	    
        
     GDALDataType type = data->GetRasterDataType(); 
@@ -79,21 +96,67 @@ int main(int argc, char *argv[]){
      float max=0, min=0; 
        
      for(i=0; i<size; i++){
-			 if(max < buffer[i]){
-				 max = buffer[i];
-			 }
+		if(max < buffer[i]){
+			max = buffer[i];
+		}
 				
-			 if(min > buffer[i]){
-			 	 min = buffer[i]; 
-			 }
-	   }
+		if(min > buffer[i]){
+			min = buffer[i]; 
+		}
+	 }
        
      float range = max - min; 
      std::cout << "range=" << range << ", max=" << max << ", min=" << min << "\n";  
      std::map<float, unsigned int> counter;  
 
-		 std::fstream json(destName.c_str(), std::ios::trunc | std::ios::out);
-		 json << "{\"w\":" << poDataset->GetRasterXSize() << ",\"h\":" << poDataset->GetRasterXSize() << ",\"data\":[";
+	 std::fstream json(destName.c_str(), std::ios::trunc | std::ios::out);
+	 // json << "{\"w\":" << poDataset->GetRasterXSize() << ",\"h\":" << poDataset->GetRasterXSize() << ",\"data\":[";
+	 json << "{"
+		"\"type\" : \"Coverage\","
+		"\"domain\" : {"
+		"\"type\": \"Domain\","
+		"\"domainType\": \"Grid\","
+		"\"axes\": {"
+		  "\"x\": { \"start\": "<< xStart << ", \"stop\": "<< xEnd << ", \"num\": "<< poDataset->GetRasterXSize() << " },"
+		  "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yStart << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
+		"},"
+		"\"referencing\": [{"
+		  "\"coordinates\": [\"x\",\"y\"],"
+		  "\"system\": {"
+			"\"type\": \"GeodeticCRS\","
+			"\"id\": \"http://www.opengis.net/def/crs/OGC/1.3/CRS84\""
+		  "}"
+		"}]"
+	  "},"
+	  "\"parameters\" : {"
+		"\"height\": {"
+		  "\"type\" : \"Parameter\","
+		  "\"unit\" : {"
+			"\"label\": {"
+			  "\"en\": \"Meter\""
+			"},"
+			"\"symbol\": {"
+			  "\"value\": \"m\","
+			  "\"type\": \"http://www.opengis.net/def/uom/UCUM/\""
+			"}"
+		  "},"
+		  "\"observedProperty\" : {"
+			"\"id\" : \"http://vocab.nerc.ac.uk/standard_name/height/\","
+			"\"label\" : {"
+			  "\"en\": \"Height\""
+			"}"
+		  "}"
+		"}"
+	  "},"
+	  "\"ranges\" : {"
+		"\"height\" : {"
+		  "\"type\" : \"NdArray\","
+		  "\"dataType\": \"float\","
+		  "\"axisNames\": [\"y\",\"x\"],"
+		  "\"shape\": [180, 360],"
+		  "\"values\" : [ "
+	;
+	
      for(i=0; i<size; i++){
 		   float value = buffer[i];
 			 json << value;
@@ -102,8 +165,9 @@ int main(int argc, char *argv[]){
 			 }
 	   }
 
-		 json << "]}"; 
-
+		 // json << "]}"; 
+		json << "]}}}";
+		
 		 json.close();
 		 GDALClose(poDataset);
 	}
