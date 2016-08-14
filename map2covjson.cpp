@@ -118,12 +118,13 @@ int main(int argc, char *argv[]){
 		"\"domainType\": \"Grid\","
 		"\"axes\": {"
 		  "\"x\": { \"start\": "<< xStart << ", \"stop\": "<< xEnd << ", \"num\": "<< poDataset->GetRasterXSize() << " },"
-		  "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yStart << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
+		  "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yEnd << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
 		"},"
 		"\"referencing\": [{"
 		  "\"coordinates\": [\"x\",\"y\"],"
 		  "\"system\": {"
 			"\"type\": \"GeodeticCRS\","
+			// TODO: get id from dataset.
 			"\"id\": \"http://www.opengis.net/def/crs/EPSG/0/32629\""
 		  "}"
 		"}]"
@@ -153,13 +154,19 @@ int main(int argc, char *argv[]){
 		  "\"type\" : \"NdArray\","
 		  "\"dataType\": \"float\","
 		  "\"axisNames\": [\"y\",\"x\"],"
-		  "\"shape\": [180, 360],"
+		  "\"shape\": [" << poDataset->GetRasterXSize() <<", "<< poDataset->GetRasterYSize() << "],"
 		  "\"values\" : [ "
 	;
 	
      for(i=0; i<size; i++){
 		   float value = buffer[i];
+		   // TODO: get no data value from dataset.
+			if (value == 0) {
+				json << "null";
+			}
+			else {
 			 json << value;
+			}
 			 if (i!=size-1) {
 				json << ",";
 			 }
