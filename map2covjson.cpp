@@ -1,7 +1,9 @@
 #define CPL_DEBUG ON
 #include <gdal/gdal_priv.h>
-#include <gdal/cpl_conv.h> // for CPLMalloc()
+#include <gdal/cpl_conv.h>
 #include <gdal/cpl_string.h>
+#include <gdal/ogr_core.h>
+#include <gdal/ogr_spatialref.h>
 #include <iostream>
 #include <ostream>
 #include <istream>
@@ -78,7 +80,9 @@ int main(int argc, char *argv[]){
 	  data = poDataset->GetRasterBand(1);   
 	    
        
-    GDALDataType type = data->GetRasterDataType(); 
+    GDALDataType type = data->GetRasterDataType();
+  	double noDataValue = data->GetNoDataValue();
+	std::cout << "nodatavalue = " << noDataValue << "\n";
     
     int size = data->GetXSize()*data->GetYSize();
 		
@@ -92,25 +96,16 @@ int main(int argc, char *argv[]){
      double geot[6]; 
      poDataset->GetGeoTransform(geot); 
        
-     unsigned int i;
-     float max=0, min=0; 
-       
-     for(i=0; i<size; i++){
-		if(max < buffer[i]){
-			max = buffer[i];
-		}
-				
-		if(min > buffer[i]){
-			min = buffer[i]; 
-		}
-	 }
-       
-     float range = max - min; 
-     std::cout << "range=" << range << ", max=" << max << ", min=" << min << "\n";  
-     std::map<float, unsigned int> counter;  
+
+	const char *projection = poDataset->GetProjectionRef();
+		std::cout << "Projection Ref: " << poDataset->GetProjectionRef() << "\n";
+
+	OGRSpatialReference *ogr = new OGRSpatialReference(projection);
+	
+	std::cout << "Projection: " << ogr->GetAttrValue("AUTHORITY", 0) << ":" << ogr->GetAttrValue("AUTHORITY", 1) << "\n";
 
 	 std::fstream json(destName.c_str(), std::ios::trunc | std::ios::out);
-	 // json << "{\"w\":" << poDataset->GetRasterXSize() << ",\"h\":" << poDataset->GetRasterXSize() << ",\"data\":[";
+
 	 json << "{"
 		"\"type\" : \"Coverage\","
 		"\"domain\" : {"
@@ -124,8 +119,7 @@ int main(int argc, char *argv[]){
 		  "\"coordinates\": [\"x\",\"y\"],"
 		  "\"system\": {"
 			"\"type\": \"GeodeticCRS\","
-			// TODO: get id from dataset.
-			"\"id\": \"http://www.opengis.net/def/crs/EPSG/0/32629\""
+			"\"id\": \"http://www.opengis.net/def/crs/" << ogr->GetAttrValue("AUTHORITY", 0) << "/0/" << ogr->GetAttrValue("AUTHORITY", 1) << "\""
 		  "}"
 		"}]"
 	  "},"
@@ -154,14 +148,16 @@ int main(int argc, char *argv[]){
 		  "\"type\" : \"NdArray\","
 		  "\"dataType\": \"float\","
 		  "\"axisNames\": [\"y\",\"x\"],"
-		  "\"shape\": [" << poDataset->GetRasterXSize() <<", "<< poDataset->GetRasterYSize() << "],"
+		  "\"shape\": [" << poDataset->GetRasterYSize() <<", "<< poDataset->GetRasterXSize() << "],"
 		  "\"values\" : [ "
 	;
 	
+		unsigned int i;
      for(i=0; i<size; i++){
 		   float value = buffer[i];
-		   // TODO: get no data value from dataset.
-			if (value == 0) {
+
+			// TODO: noDataValue is not 0 but is a near 0, this will be a problem if values are not exact, check floating point conversion.
+			if (value == 0) {// noDataValue) {
 				json << "null";
 			}
 			else {
@@ -172,7 +168,6 @@ int main(int argc, char *argv[]){
 			 }
 	   }
 
-		 // json << "]}"; 
 		json << "]}}}";
 		
 		 json.close();
