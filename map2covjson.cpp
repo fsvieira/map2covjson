@@ -13,166 +13,177 @@
 #include <map>
 #include <stdlib.h>
 
-int main(int argc, char *argv[]){
-	GDALDataset  *poDataset;
-	GDALAllRegister();
-	
-	if(argc != 3){
-		std::cout << "usage:\n" << argv[0] << " src_file dest_file\n";
-		exit(0);  
-	}
-	
-	const std::string name = argv[1]; 
-	const std::string destName = argv[2]; 
+int main(int argc, char *argv[])
+{
+    // Make a simple check to program arguments,
+    if(argc != 3)
+    {
+        std::cout << "usage:\n" << argv[0] << " src_file dest_file\n";
+        exit(0);
+    }
 
-	poDataset = (GDALDataset *) GDALOpen(name.c_str(), GA_ReadOnly );
+    // init variables,
+    const std::string name = argv[1];
+    const std::string destName = argv[2];
+    const char *pszFormat =  "GTiff";
+    char **papszMetadata;
+    char **papszOptions = NULL;
+    double padfTransform[6], xStart, yStart, xEnd, yEnd;
+    GDALDriver *poDriver;
 
-	if( poDataset == NULL ){
-	   std::cout << "Failed to open " << name << "\n"; 
-	}
-	else{
-		const char *pszFormat =  "GTiff";
-		char **papszMetadata;
-
-		GDALDriver *poDriver;
-
-		poDriver = GetGDALDriverManager()->GetDriverByName(pszFormat);
-
-		if( poDriver == NULL ){
-			std::cout << "Cant open driver\n"; 
-			exit(1);       
-		}
-		
-		papszMetadata = GDALGetMetadata(poDriver, NULL);
-		if( !CSLFetchBoolean(papszMetadata, GDAL_DCAP_CREATE, FALSE)){
-			std::cout << "Create Method not suported!\n";
-		}
-		
-		if( !CSLFetchBoolean( papszMetadata, GDAL_DCAP_CREATECOPY, FALSE ) ){
-			std::cout << "CreateCopy() method not suported.\n";
-		}  
-
-		char **papszOptions = NULL;
-
-	  std::cout << "Reading file " << name << "\n"; 
-	  std::cout << "x= " << poDataset->GetRasterXSize()
-							 << ", h=" << poDataset->GetRasterYSize() <<
-							 ", bands= " << poDataset->GetRasterCount() << "\n";
-	  
-	  double padfTransform[6];
-	  poDataset->GetGeoTransform(padfTransform);
-	
-	  double xStart = padfTransform[0] + 0*padfTransform[1] + 0*padfTransform[2];
-	  double yStart = padfTransform[3] + 0*padfTransform[4] + 0*padfTransform[5];
-
-	  double xEnd = padfTransform[0] + poDataset->GetRasterXSize()*padfTransform[1] + poDataset->GetRasterYSize()*padfTransform[2];
-	  double yEnd = padfTransform[3] + poDataset->GetRasterXSize()*padfTransform[4] + poDataset->GetRasterYSize()*padfTransform[5];
-	  
-	  std::cout 
-		<< "xstart = " << xStart <<"\n"
-		<< "xend = " << xEnd <<"\n"
-		<< "ystart = " << yStart <<"\n"
-		<< "yend = " << yEnd <<"\n"
-		;
-	   
-	
-	  GDALRasterBand *data; 
-	  data = poDataset->GetRasterBand(1);   
-	    
-       
-    GDALDataType type = data->GetRasterDataType();
-  	double noDataValue = data->GetNoDataValue();
-	std::cout << "nodatavalue = " << noDataValue << "\n";
-    
-    int size = data->GetXSize()*data->GetYSize();
-		
-	  std::cout << "size=" << size << " , w*h = " << poDataset->GetRasterXSize()*poDataset->GetRasterYSize() << "\n";
-
+    GDALAllRegister();
+    GDALDataset *poDataset = (GDALDataset *) GDALOpen(name.c_str(), GA_ReadOnly );
+    GDALRasterBand *data;
+    double noDataValue;
+    int size;
     float *buffer;
-    buffer = (float *) CPLMalloc(sizeof(float)*size);
-    data->RasterIO(GF_Read, 0, 0, data->GetXSize(), data->GetYSize(), buffer, data->GetXSize(), data->GetYSize(), GDT_Float32, 0, 0 );
-       
-       // Metadata, 
-     double geot[6]; 
-     poDataset->GetGeoTransform(geot); 
-       
+    double geot[6];
+    const char *projection;
 
-	const char *projection = poDataset->GetProjectionRef();
-		std::cout << "Projection Ref: " << poDataset->GetProjectionRef() << "\n";
+    if(poDataset == NULL)
+    {
+        std::cout << "Failed to open " << name << "\n";
+    }
+    else
+    {
+        poDriver = GetGDALDriverManager()->GetDriverByName(pszFormat);
 
-	OGRSpatialReference *ogr = new OGRSpatialReference(projection);
-	
-	std::cout << "Projection: " << ogr->GetAttrValue("AUTHORITY", 0) << ":" << ogr->GetAttrValue("AUTHORITY", 1) << "\n";
+        if(poDriver == NULL)
+        {
+            std::cout << "Cant open driver\n";
+            exit(1);
+        }
 
-	 std::fstream json(destName.c_str(), std::ios::trunc | std::ios::out);
+        papszMetadata = GDALGetMetadata(poDriver, NULL);
 
-	 json << "{"
-		"\"type\" : \"Coverage\","
-		"\"domain\" : {"
-		"\"type\": \"Domain\","
-		"\"domainType\": \"Grid\","
-		"\"axes\": {"
-		  "\"x\": { \"start\": "<< xStart << ", \"stop\": "<< xEnd << ", \"num\": "<< poDataset->GetRasterXSize() << " },"
-		  "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yEnd << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
-		"},"
-		"\"referencing\": [{"
-		  "\"coordinates\": [\"x\",\"y\"],"
-		  "\"system\": {"
-			"\"type\": \"GeodeticCRS\","
-			"\"id\": \"http://www.opengis.net/def/crs/" << ogr->GetAttrValue("AUTHORITY", 0) << "/0/" << ogr->GetAttrValue("AUTHORITY", 1) << "\""
-		  "}"
-		"}]"
-	  "},"
-	  "\"parameters\" : {"
-		"\"height\": {"
-		  "\"type\" : \"Parameter\","
-		  "\"unit\" : {"
-			"\"label\": {"
-			  "\"en\": \"Meter\""
-			"},"
-			"\"symbol\": {"
-			  "\"value\": \"m\","
-			  "\"type\": \"http://www.opengis.net/def/uom/UCUM/\""
-			"}"
-		  "},"
-		  "\"observedProperty\" : {"
-			"\"id\" : \"http://vocab.nerc.ac.uk/standard_name/height/\","
-			"\"label\" : {"
-			  "\"en\": \"Height\""
-			"}"
-		  "}"
-		"}"
-	  "},"
-	  "\"ranges\" : {"
-		"\"height\" : {"
-		  "\"type\" : \"NdArray\","
-		  "\"dataType\": \"float\","
-		  "\"axisNames\": [\"y\",\"x\"],"
-		  "\"shape\": [" << poDataset->GetRasterYSize() <<", "<< poDataset->GetRasterXSize() << "],"
-		  "\"values\" : [ "
-	;
-	
-		unsigned int i;
-     for(i=0; i<size; i++){
-		   float value = buffer[i];
+        if(!CSLFetchBoolean(papszMetadata, GDAL_DCAP_CREATE, FALSE))
+        {
+            std::cout << "Create Method not suported!\n";
+        }
 
-			// TODO: noDataValue is not 0 but is a near 0, this will be a problem if values are not exact, check floating point conversion.
-			if (value == 0) {// noDataValue) {
-				json << "null";
-			}
-			else {
-			 json << value;
-			}
-			 if (i!=size-1) {
-				json << ",";
-			 }
-	   }
+        if(!CSLFetchBoolean(papszMetadata, GDAL_DCAP_CREATECOPY, FALSE ))
+        {
+            std::cout << "CreateCopy() method not suported.\n";
+        }
 
-		json << "]}}}";
-		
-		 json.close();
-		 GDALClose(poDataset);
-	}
-    
-  exit(0); 
+        // Get transform matrix, save it on padfTransform
+        poDataset->GetGeoTransform(padfTransform);
+
+        // calculate box coordinates,
+        xStart = padfTransform[0] + 0*padfTransform[1] + 0*padfTransform[2];
+        yStart = padfTransform[3] + 0*padfTransform[4] + 0*padfTransform[5];
+
+        xEnd = padfTransform[0] + poDataset->GetRasterXSize()*padfTransform[1] + poDataset->GetRasterYSize()*padfTransform[2];
+        yEnd = padfTransform[3] + poDataset->GetRasterXSize()*padfTransform[4] + poDataset->GetRasterYSize()*padfTransform[5];
+
+        // Get raster band
+        data = poDataset->GetRasterBand(1);
+
+        // GDALDataType type = data->GetRasterDataType();
+        noDataValue = data->GetNoDataValue();
+
+        size = data->GetXSize()*data->GetYSize();
+
+        buffer = (float *) CPLMalloc(sizeof(float)*size);
+        data->RasterIO(GF_Read, 0, 0, data->GetXSize(), data->GetYSize(), buffer, data->GetXSize(), data->GetYSize(), GDT_Float32, 0, 0 );
+
+        // Metadata,
+        poDataset->GetGeoTransform(geot);
+
+        projection = poDataset->GetProjectionRef();
+        OGRSpatialReference *ogr = new OGRSpatialReference(projection);
+
+        std::cout
+                << "Reading file " << name << "\n"
+                << "x= " << poDataset->GetRasterXSize()
+                << ", h=" << poDataset->GetRasterYSize()
+                << ", bands= " << poDataset->GetRasterCount() << "\n"
+                << "xstart = " << xStart <<"\n"
+                << "xend = " << xEnd <<"\n"
+                << "ystart = " << yStart <<"\n"
+                << "yend = " << yEnd <<"\n"
+                << "nodatavalue = " << noDataValue << "\n"
+                << "Projection: " << ogr->GetAttrValue("AUTHORITY", 0) << ":" << ogr->GetAttrValue("AUTHORITY", 1) << "\n"
+                << "size=" << size << " , w*h = " << poDataset->GetRasterXSize()*poDataset->GetRasterYSize() << "\n";
+        ;
+
+        std::fstream json(destName.c_str(), std::ios::trunc | std::ios::out);
+
+        json << "{"
+             "\"type\" : \"Coverage\","
+             "\"domain\" : {"
+             "\"type\": \"Domain\","
+             "\"domainType\": \"Grid\","
+             "\"axes\": {"
+             "\"x\": { \"start\": "<< xStart << ", \"stop\": "<< xEnd << ", \"num\": "<< poDataset->GetRasterXSize() << " },"
+             "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yEnd << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
+             "},"
+             "\"referencing\": [{"
+             "\"coordinates\": [\"x\",\"y\"],"
+             "\"system\": {"
+             "\"type\": \"GeodeticCRS\","
+             "\"id\": \"http://www.opengis.net/def/crs/" << ogr->GetAttrValue("AUTHORITY", 0) << "/0/" << ogr->GetAttrValue("AUTHORITY", 1) << "\""
+             "}"
+             "}]"
+             "},"
+             "\"parameters\" : {"
+             "\"height\": {"
+             "\"type\" : \"Parameter\","
+             "\"unit\" : {"
+             "\"label\": {"
+             "\"en\": \"Meter\""
+             "},"
+             "\"symbol\": {"
+             "\"value\": \"m\","
+             "\"type\": \"http://www.opengis.net/def/uom/UCUM/\""
+             "}"
+             "},"
+             "\"observedProperty\" : {"
+             "\"id\" : \"http://vocab.nerc.ac.uk/standard_name/height/\","
+             "\"label\" : {"
+             "\"en\": \"Height\""
+             "}"
+             "}"
+             "}"
+             "},"
+             "\"ranges\" : {"
+             "\"height\" : {"
+             "\"type\" : \"NdArray\","
+             "\"dataType\": \"float\","
+             "\"axisNames\": [\"y\",\"x\"],"
+             "\"shape\": [" << poDataset->GetRasterYSize() <<", "<< poDataset->GetRasterXSize() << "],"
+             "\"values\" : [ "
+             ;
+
+        unsigned int i;
+        for(i=0; i<size; i++)
+        {
+            float value = buffer[i];
+
+            // TODO: noDataValue is not 0, and its wrong.
+            if (value == 0 /*noDataValue*/)
+            {
+                json << "null";
+            }
+            else
+            {
+                json << value;
+            }
+
+            if (i!=size-1)
+            {
+                json << ",";
+            }
+        }
+
+        json << "]}}}";
+
+        json.close();
+        GDALClose(poDataset);
+
+        std::cout << "\n\nGenerated file saved to: " << destName << "\n";
+
+    }
+
+    exit(0);
 }
