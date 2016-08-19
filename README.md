@@ -1,6 +1,8 @@
+===
 Map2covjson
+===
 
-Convert a raster map to covjson.
+Convert a raster map to covjson (https://covjson.org/).
 
 ===
   Install
