@@ -18,5 +18,5 @@ make
   Run
 ===
 
-  ./map2covjson <src_file> <dest_file>
+  ./map2covjson &lt;src_file&gt; &lt;dest_file&gt;
 
