@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     GDALAllRegister();
     GDALDataset *poDataset = (GDALDataset *) GDALOpen(name.c_str(), GA_ReadOnly );
     GDALRasterBand *data;
-    double noDataValue;
+    float noDataValue;
     int size;
     float *buffer;
     double geot[6];
@@ -80,7 +80,12 @@ int main(int argc, char *argv[])
         data = poDataset->GetRasterBand(1);
 
         // GDALDataType type = data->GetRasterDataType();
-        noDataValue = data->GetNoDataValue();
+        int hasNoData;
+        noDataValue = (float) data->GetNoDataValue(&hasNoData);
+        
+        if (!hasNoData) {
+			noDataValue = 0;
+		}
 
         size = data->GetXSize()*data->GetYSize();
 
@@ -91,10 +96,16 @@ int main(int argc, char *argv[])
         poDataset->GetGeoTransform(geot);
 
         projection = poDataset->GetProjectionRef();
+        // std::cout << projection;
         OGRSpatialReference *ogr = new OGRSpatialReference(projection);
+
+		int latLong = ogr->EPSGTreatsAsLatLong();
+
+		const std::string axisOrder = latLong?"\"y\", \"x\"":"\"x\", \"y\"";
 
         std::cout
                 << "Reading file " << name << "\n"
+                << "Axis Order = " << (latLong?"Lat, Long":"Long, Lat") << " (" << axisOrder << ")\n"
                 << "x= " << poDataset->GetRasterXSize()
                 << ", h=" << poDataset->GetRasterYSize()
                 << ", bands= " << poDataset->GetRasterCount() << "\n"
@@ -102,7 +113,7 @@ int main(int argc, char *argv[])
                 << "xend = " << xEnd <<"\n"
                 << "ystart = " << yStart <<"\n"
                 << "yend = " << yEnd <<"\n"
-                << "nodatavalue = " << noDataValue << "\n"
+                << "nodatavalue = " << (hasNoData?"":"N/A, default = ") << noDataValue << "\n"
                 << "Projection: " << ogr->GetAttrValue("AUTHORITY", 0) << ":" << ogr->GetAttrValue("AUTHORITY", 1) << "\n"
                 << "size=" << size << " , w*h = " << poDataset->GetRasterXSize()*poDataset->GetRasterYSize() << "\n";
         ;
@@ -115,11 +126,11 @@ int main(int argc, char *argv[])
              "\"type\": \"Domain\","
              "\"domainType\": \"Grid\","
              "\"axes\": {"
-             "\"x\": { \"start\": "<< xStart << ", \"stop\": "<< xEnd << ", \"num\": "<< poDataset->GetRasterXSize() << " },"
-             "\"y\": { \"start\": "<< yStart << ", \"stop\": "<< yEnd << ", \"num\": "<< poDataset->GetRasterYSize() << " }"
+             "\"x\": { \"start\": " << xStart << ", \"stop\": " << xEnd << ", \"num\": " << poDataset->GetRasterXSize() << " },"
+             "\"y\": { \"start\": " << yStart << ", \"stop\": " << yEnd << ", \"num\": " << poDataset->GetRasterYSize() << " }"
              "},"
              "\"referencing\": [{"
-             "\"coordinates\": [\"x\",\"y\"],"
+             "\"coordinates\": [" << axisOrder << "],"
              "\"system\": {"
              "\"type\": \"GeodeticCRS\","
              "\"id\": \"http://www.opengis.net/def/crs/" << ogr->GetAttrValue("AUTHORITY", 0) << "/0/" << ogr->GetAttrValue("AUTHORITY", 1) << "\""
@@ -150,7 +161,7 @@ int main(int argc, char *argv[])
              "\"height\" : {"
              "\"type\" : \"NdArray\","
              "\"dataType\": \"float\","
-             "\"axisNames\": [\"y\",\"x\"],"
+             "\"axisNames\": [" << axisOrder << "],"
              "\"shape\": [" << poDataset->GetRasterYSize() <<", "<< poDataset->GetRasterXSize() << "],"
              "\"values\" : [ "
              ;
@@ -161,7 +172,7 @@ int main(int argc, char *argv[])
             float value = buffer[i];
 
             // TODO: noDataValue is not 0, and its wrong.
-            if (value == 0 /*noDataValue*/)
+            if (value == noDataValue)
             {
                 json << "null";
             }
