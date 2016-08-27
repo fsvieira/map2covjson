@@ -96,11 +96,20 @@ int main(int argc, char *argv[])
         poDataset->GetGeoTransform(geot);
 
         projection = poDataset->GetProjectionRef();
-        // std::cout << projection;
+        std::cout << projection;
         OGRSpatialReference *ogr = new OGRSpatialReference(projection);
 
+		ogr->Fixup();
 		int latLong = ogr->EPSGTreatsAsLatLong();
 
+		const char *result = ogr->GetAxis("PROJCS", 1, NULL);
+		if (result == NULL) {
+			std::cout << "NULL\n";
+		}
+		else {
+			std::cout << result;
+		}
+		
 		const std::string axisOrder = latLong?"\"y\", \"x\"":"\"x\", \"y\"";
 
         std::cout
