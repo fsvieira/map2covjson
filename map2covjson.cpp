@@ -181,7 +181,6 @@ int main(int argc, char *argv[])
         {
             float value = buffer[i];
 
-            // TODO: noDataValue is not 0, and its wrong.
             if (value == noDataValue)
             {
                 json << "null";
