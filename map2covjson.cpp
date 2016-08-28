@@ -103,13 +103,19 @@ int main(int argc, char *argv[])
 		ogr->AutoIdentifyEPSG();
 		ogr->Fixup();
 	
-		int latLong = ogr->EPSGTreatsAsLatLong();
+		int xy = 0;
+		if (ogr->IsProjected()) {
+			xy = !ogr->EPSGTreatsAsNorthingEasting();
+		}
+		else {
+			xy = !ogr->EPSGTreatsAsLatLong();
+		}
 
-		const std::string axisOrder = latLong?"\"y\", \"x\"":"\"x\", \"y\"";
+		const std::string axisOrder = xy?"\"x\", \"y\"":"\"y\", \"x\"";// latLong?"\"y\", \"x\"":"\"x\", \"y\"";
 
         std::cout
                 << "Reading file " << name << "\n"
-                << "Axis Order = " << (latLong?"Lat, Long":"Long, Lat") << " (" << axisOrder << ")\n"
+                << "Axis Order = " << axisOrder << "\n"
                 << "x= " << poDataset->GetRasterXSize()
                 << ", h=" << poDataset->GetRasterYSize()
                 << ", bands= " << poDataset->GetRasterCount() << "\n"
