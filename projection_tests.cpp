@@ -20,6 +20,7 @@ void getProjectionInfo (const char *projection) {
 	ogr->AutoIdentifyEPSG();
 	ogr->Fixup();
 	int latLong = ogr->EPSGTreatsAsLatLong();
+	int northEast = ogr->EPSGTreatsAsNorthingEasting();
 	
 	const std::string axisOrder = latLong?"\"y\", \"x\"":"\"x\", \"y\"";
 	
@@ -27,6 +28,7 @@ void getProjectionInfo (const char *projection) {
 		<< "Projection = " << projection << "\n"
 		<< "AUTHORITY = " << ogr->GetAttrValue("AUTHORITY", 0) << ":" << ogr->GetAttrValue("AUTHORITY", 1) << "\n"
 		<< "EPSGTreatsAsLatLong = " << (latLong?"True":"False") << "\n"
+		<< "EPSGTreatsAsNorthingEasting = " << (northEast?"True":"False") << "\n"
 		<< "Axis Order = " << (latLong?"Lat, Long":"Long, Lat") << " (" << axisOrder << ")\n\n"
 	;
 }
