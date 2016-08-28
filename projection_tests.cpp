@@ -17,8 +17,12 @@ void getProjectionInfo (const char *projection) {
 
 	OGRSpatialReference *ogr = new OGRSpatialReference(projection);
 	
+	// OGRSpatialReference *ogr = new OGRSpatialReference();
+	ogr->importFromEPSGA(atoi(ogr->GetAttrValue("AUTHORITY", 1)));
+
 	ogr->AutoIdentifyEPSG();
 	ogr->Fixup();
+	
 	int latLong = ogr->EPSGTreatsAsLatLong();
 	int northEast = ogr->EPSGTreatsAsNorthingEasting();
 	
