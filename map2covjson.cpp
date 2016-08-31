@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
              "\"height\" : {"
              "\"type\" : \"NdArray\","
              "\"dataType\": \"float\","
-             "\"axisNames\": [" << axisOrder << "],"
+             "\"axisNames\": [\"y\",\"x\"]," // << axisOrder << "],"
              "\"shape\": [" << poDataset->GetRasterYSize() <<", "<< poDataset->GetRasterXSize() << "],"
              "\"values\" : [ "
              ;
